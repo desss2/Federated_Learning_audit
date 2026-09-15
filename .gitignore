@@ -48,7 +48,6 @@ node_modules/
 
 blockchain/cache/
 blockchain/artifacts/
-blockchain/contract_address.json
 
 # ============================================================
 # IPFS generated/runtime data
