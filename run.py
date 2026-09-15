@@ -74,9 +74,9 @@ def verify_clients():
             failed.append(partition_id)
 
     if USE_LABEL_NOISE:
-        report_path = "/app/results/audit_verification_noisy.npy"
+        report_path = "results/audit_verification_noisy.npy"
     else:
-        report_path = "/app/results/audit_verification_clean.npy"
+        report_path = "results/audit_verification_clean.npy"
 
     with open(report_path, "w", encoding="utf-8") as report:
 
