@@ -28,6 +28,8 @@ dependencies = [
 py-modules = [
     "client_app",
     "server_app",
+    "audit",
+    "blockchain",
     "data",
     "evaluation",
     "globals",
