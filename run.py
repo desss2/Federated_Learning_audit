@@ -22,9 +22,9 @@ def run_fl():
     print(f"Total execution time: {fl_time:.2f} seconds")
 
     if USE_LABEL_NOISE:
-        report_path = "/app/results/fl_execution_time_noisy.txt"
+        report_path = "results/fl_execution_time_noisy.txt"
     else:
-        report_path = "/app/results/fl_execution_time_clean.txt"
+        report_path = "results/fl_execution_time_clean.txt"
 
     with open(report_path, "w", encoding="utf-8") as report:
         report.write("=== FEDERATED LEARNING EXECUTION TIME ===\n")
