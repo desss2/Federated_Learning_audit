@@ -1,0 +1,134 @@
+services:
+
+  besu-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: besu-server
+    command:
+      - --genesis-file=/config/genesis.json
+      - --node-private-key-file=/config/key.priv
+      - --data-path=/data
+      - --p2p-enabled=true
+      - --p2p-host=0.0.0.0
+      - --p2p-port=30303
+      - --rpc-http-enabled=true
+      - --rpc-http-host=0.0.0.0
+      - --rpc-http-port=8545
+      - --rpc-http-api=ETH,NET,QBFT,WEB3
+      - --host-allowlist=*
+      - --min-gas-price=0
+      - --logging=INFO
+      - --static-nodes-file=/config/static-nodes.json
+    volumes:
+      - ./network/nodes/server/genesis.json:/config/genesis.json:ro
+      - ./network/nodes/server/key.priv:/config/key.priv:ro
+      - ./network/nodes/server/static-nodes.json:/config/static-nodes.json:ro
+      - besu_server_data:/data
+    ports:
+      - "8545:8545"
+      - "30303:30303"
+    networks:
+      blockchain:
+        ipv4_address: 172.28.0.2
+
+  besu-client-0:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: besu-client-0
+    command:
+      - --genesis-file=/config/genesis.json
+      - --node-private-key-file=/config/key.priv
+      - --data-path=/data
+      - --p2p-enabled=true
+      - --p2p-host=0.0.0.0
+      - --p2p-port=30303
+      - --rpc-http-enabled=true
+      - --rpc-http-host=0.0.0.0
+      - --rpc-http-port=8545
+      - --rpc-http-api=ETH,NET,QBFT,WEB3
+      - --host-allowlist=*
+      - --min-gas-price=0
+      - --logging=INFO
+      - --static-nodes-file=/config/static-nodes.json
+    volumes:
+      - ./network/nodes/client_0/genesis.json:/config/genesis.json:ro
+      - ./network/nodes/client_0/key.priv:/config/key.priv:ro
+      - ./network/nodes/client_0/static-nodes.json:/config/static-nodes.json:ro
+      - besu_client_0_data:/data
+    ports:
+      - "8546:8545"
+      - "30304:30303"
+    depends_on:
+      besu-server:
+        condition: service_healthy
+    networks:
+      blockchain:
+        ipv4_address: 172.28.0.3
+
+  besu-client-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: besu-client-1
+    command:
+      - --genesis-file=/config/genesis.json
+      - --node-private-key-file=/config/key.priv
+      - --data-path=/data
+      - --p2p-enabled=true
+      - --p2p-host=0.0.0.0
+      - --p2p-port=30303
+      - --rpc-http-enabled=true
+      - --rpc-http-host=0.0.0.0
+      - --rpc-http-port=8545
+      - --rpc-http-api=ETH,NET,QBFT,WEB3
+      - --host-allowlist=*
+      - --min-gas-price=0
+      - --logging=INFO
+      - --static-nodes-file=/config/static-nodes.json
+    volumes:
+      - ./network/nodes/client_1/genesis.json:/config/genesis.json:ro
+      - ./network/nodes/client_1/key.priv:/config/key.priv:ro
+      - ./network/nodes/client_1/static-nodes.json:/config/static-nodes.json:ro
+      - besu_client_1_data:/data
+    ports:
+      - "8547:8545"
+      - "30305:30303"
+    depends_on:
+      besu-server:
+        condition: service_healthy
+    networks:
+      blockchain:
+        ipv4_address: 172.28.0.4
+
+  contract-deployer:
+    build:
+      context: .
+      dockerfile: Dockerfile.deployer
+    container_name: contract-deployer
+    environment:
+      BESU_RPC_URL: http://besu-server:8545
+      BESU_PRIVATE_KEY_PATH: /keys/server-key.priv
+    volumes:
+      - ./network/nodes/server/key.priv:/keys/server-key.priv:ro
+      - ./contract_address.json:/app/contract_address.json
+    depends_on:
+      besu-client-0:
+        condition: service_healthy
+      besu-client-1:
+        condition: service_healthy
+    networks:
+      - blockchain
+
+networks:
+  blockchain:
+    name: securecare-blockchain
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  besu_server_data:
+  besu_client_0_data:
+  besu_client_1_data:

@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "securecare-fl"
+version = "1.0.0"
+description = "SecureCare-FL"
+requires-python = ">=3.11"
+
+dependencies = [
+    "flwr[simulation]==1.30.0",
+    "tensorflow",
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "scikit-learn==1.8.0",
+    "scipy",
+    "joblib",
+    "web3",
+    "requests",
+    "pyyaml",
+    "psutil",
+]
+
+[tool.setuptools]
+py-modules = [
+    "client_app",
+    "server_app",
+    "data",
+    "evaluation",
+    "globals",
+    "identity",
+    "model",
+    "reputation",
+    "result",
+    "run",
+    "verify_client",
+    "visualization",
+]
+
+
+[tool.flwr.app]
+publisher = "local"
+
+[tool.flwr.app.components]
+serverapp = "server_app:app"
+clientapp = "client_app:app"

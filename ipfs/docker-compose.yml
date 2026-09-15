@@ -1,0 +1,74 @@
+services:
+
+  ipfs-server:
+    image: ipfs/kubo:v0.42.0
+    container_name: ipfs-server
+    restart: unless-stopped
+    command: ["daemon", "--migrate=true"]
+    volumes:
+      - ./network/server:/data/ipfs
+    environment:
+      IPFS_PATH: /data/ipfs
+    ports:
+      - "5001:5001"
+      - "8080:8080"
+      - "4001:4001"
+    healthcheck:
+      test: ["CMD-SHELL", "ipfs id >/dev/null 2>&1"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    networks:
+      ipfs:
+        ipv4_address: 172.29.0.2
+
+  ipfs-client-0:
+    image: ipfs/kubo:v0.42.0
+    container_name: ipfs-client-0
+    restart: unless-stopped
+    command: ["daemon", "--migrate=true"]
+    volumes:
+      - ./network/client_0:/data/ipfs
+    environment:
+      IPFS_PATH: /data/ipfs
+    ports:
+      - "5002:5001"
+      - "8081:8080"
+      - "4002:4001"
+    healthcheck:
+      test: ["CMD-SHELL", "ipfs id >/dev/null 2>&1"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    networks:
+      ipfs:
+        ipv4_address: 172.29.0.3
+
+  ipfs-client-1:
+    image: ipfs/kubo:v0.42.0
+    container_name: ipfs-client-1
+    restart: unless-stopped
+    command: ["daemon", "--migrate=true"]
+    volumes:
+      - ./network/client_1:/data/ipfs
+    environment:
+      IPFS_PATH: /data/ipfs
+    ports:
+      - "5003:5001"
+      - "8082:8080"
+      - "4003:4001"
+    healthcheck:
+      test: ["CMD-SHELL", "ipfs id >/dev/null 2>&1"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    networks:
+      ipfs:
+        ipv4_address: 172.29.0.4
+
+networks:
+  ipfs:
+    name: securecare-ipfs
+    ipam:
+      config:
+        - subnet: 172.29.0.0/16
