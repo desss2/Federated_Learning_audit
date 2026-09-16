@@ -15,6 +15,8 @@ import joblib
 import hashlib
 import json
 import time
+import threading
+import psutil
 
 DATA_DIR = os.getenv("DATA_DIR", "./data")
 
@@ -49,6 +51,16 @@ def fit_config(server_round: int):
     return {
         "round": server_round,
     }
+    
+def monitor_resources(process, samples, stop_event, interval=0.2):
+    while not stop_event.is_set():
+        cpu = process.cpu_percent(interval=None)
+        ram = process.memory_info().rss / (1024 ** 2)
+
+        samples["cpu"].append(cpu)
+        samples["ram"].append(ram)
+
+        time.sleep(interval)
 
 
 class OutputFedAvg(FedAvg):
@@ -80,6 +92,8 @@ class OutputFedAvg(FedAvg):
         self.global_metrics = []
         self.all_round_reputations = []
         self.y_pred_global = None
+        
+        self.performance_metrics = []
 
         # pesi prima dell'aggregazione
         self.global_weights = [w.copy() for w in model.get_weights()]
@@ -184,9 +198,14 @@ class OutputFedAvg(FedAvg):
     def save_final_results(self):
 
         if USE_LABEL_NOISE:
-            filename = "results_noisy.npy"
+            result_filename = "results_noisy.npy"
+            performance_filename = "performance_metrics_noisy.json"
         else:
-            filename = "results_clean.npy"
+            result_filename = "results_clean.npy"
+            performance_filename = "performance_metrics_clean.json"
+            
+        results_filepath = os.path.join("/app/results", result_filename)
+        performance_filepath = os.path.join("/app/results", performance_filename)
 
         results = {
             "global_metrics": self.global_metrics,
@@ -198,11 +217,19 @@ class OutputFedAvg(FedAvg):
             "label_classes": le.classes_,
         }
 
-        filepath = os.path.join("/app/results", filename)
+        save_results(results_filepath, results)
 
-        save_results(filepath, results)
+        print(f"\n[SERVER] Results saved to {result_filename}")
 
-        print(f"\n[SERVER] Results saved to {filename}")
+
+        with open(performance_filepath, "w") as f:
+            json.dump(
+            	{"rounds": self.performance_metrics},
+            	f,
+            	indent=4
+        	)
+        	
+        print(f"[PERFORMANCE] Metrics saved to {performance_filename}")
 
     def aggregate_fit(
         self,
@@ -212,7 +239,26 @@ class OutputFedAvg(FedAvg):
     ):
 
 
+        round_start = time.perf_counter()
+
+        process = psutil.Process(os.getpid())
+        resource_samples = {
+    		"cpu": [],
+    		"ram": []
+		}
+        stop_monitor = threading.Event()
+
+        monitor_thread = threading.Thread(
+    		target=monitor_resources,
+    		args=(process, resource_samples, stop_monitor),
+    		daemon=True
+		)
+
+        monitor_thread.start()
+
         if not results:
+            stop_monitor.set()
+            monitor_thread.join()
             return None, {}
 
         round_reputations = []
@@ -224,6 +270,8 @@ class OutputFedAvg(FedAvg):
         client_ids, client_weights, client_num_examples, round_metrics = self.collect_client_results(results)
 
 
+        client_eval_start = time.perf_counter()
+		
         # valutazione dei modelli dei client sul global test
         for i, weights in enumerate(client_weights):
             self.model.set_weights(weights)
@@ -245,7 +293,8 @@ class OutputFedAvg(FedAvg):
             round_metrics[i]["recall"] = test_rec
             round_metrics[i]["f1"] = test_f1
 
-
+        client_eval_time = time.perf_counter() - client_eval_start
+		
         # registriamo il mapping delle identità dei client
         for client in round_metrics:
             update_identity_mapping(client_id=client["client_id"],partition_id=client["partition_id"])
@@ -261,6 +310,8 @@ class OutputFedAvg(FedAvg):
 
         num_clients = len(client_weights)
 
+
+        reputation_start = time.perf_counter()
         # calcolo reputazione
         for i, client_id in enumerate(client_ids):
             rep_scores, rep_analysis = (
@@ -282,6 +333,8 @@ class OutputFedAvg(FedAvg):
 
             print(f"[SERVER] Client {client_id} "f"reputation = "f"{rep_scores['combined']:.4f}")
 
+        reputation_time = time.perf_counter() - reputation_start
+		
         self.all_round_reputations.append(round_reputations)
 
 
@@ -297,6 +350,10 @@ class OutputFedAvg(FedAvg):
 
         print(f"\n  [SERVER] Round {server_round} Included Clients: {[client_ids[i] for i in included_clients]}")
 
+
+        audit_start = time.perf_counter()
+		
+		
         # audit del round FL
         round_audit = []
         client_audits = []
@@ -327,21 +384,24 @@ class OutputFedAvg(FedAvg):
                         for metric in negative_metrics
                     ]
                 }
+                
+            # Simulazione di decisione errata per il client 0
+            if SIMULATE_WRONG_AGGREGATION_DECISION and server_round==1 and i == 0:
+                aggregation_decision = not aggregation_decision
+                if aggregation_decision:
+                    decision = "ACCEPTED"
+                else:
+                    decision = "REJECTED"
 
-            local_model_hash = hash_model_weights(
-                client_weights[i]
-            )
+            local_model_hash = hash_model_weights(client_weights[i])
 
             partition_id = round_metrics[i]["partition_id"]
 
             client_id_str = f"client_{partition_id}"
-
-            client_update_hash, client_update_timestamp = get_client_update_from_blockchain(
-                    client_id=client_id_str,
-                    round_num=server_round,
-                    blockchain_rpc_url=get_blockchain_rpc_url(client_id_str)
-                )
-
+            
+            # se il flag è settato, alteriamo hash del client 0
+            if SIMULATE_WRONG_MODEL_HASH and server_round==1 and i == 0:
+                local_model_hash = "00" * 32
 
             record = create_client_audit_record(
                 client_id=client_id,
@@ -366,13 +426,20 @@ class OutputFedAvg(FedAvg):
                 "reputation": round_reputations[i]["combined"],
                 "aggregationDecision": aggregation_decision
             })
+            
+        
+        # a partire dalla lista degli hash, creiamo il Merkle Tree
+        merkle_root = build_merkle_tree(audit_hashes)
+            
+        audit_time = time.perf_counter() - audit_start
+        
+        ipfs_start = time.perf_counter()
 
         ipfs_api_url = get_ipfs_api_url("server")
         cid_transactions = upload_audit_records_to_ipfs(round_audit, ipfs_api_url)
-
-
-        # a partire dalla lista degli hash, creiamo il Merkle Tree
-        merkle_root = build_merkle_tree(audit_hashes)
+        
+        ipfs_time = time.perf_counter() - ipfs_start
+          
 
         # pesi basati sulla reputazione
         rep_weights = self.reputation_manager.get_aggregation_weights(
@@ -413,7 +480,7 @@ class OutputFedAvg(FedAvg):
         blockchain_rpc_url = get_blockchain_rpc_url("server")
         path_private_key=get_blockchain_private_key_path("server")
         private_key = Path(path_private_key).read_text().strip()
-        tx_hash, block_number, status = record_audit_on_blockchain(round_transaction, client_audits, blockchain_rpc_url, private_key)
+        tx_hash, block_number, status, gas_used, send_time, confirmation_time = record_audit_on_blockchain(round_transaction, client_audits, blockchain_rpc_url, private_key)
 
         if status ==1:
             print(f"[AUDIT] Blockchain audit transaction  sent: {tx_hash}. Recorded in block: {block_number}")
@@ -431,12 +498,43 @@ class OutputFedAvg(FedAvg):
                 server_round
             )
         )
+        
+        
+        round_end = time.perf_counter()
+        server_round_time = round_end - round_start
+		
+        stop_monitor.set()
+        monitor_thread.join()
+		
+        cpu_avg = np.mean(resource_samples["cpu"])
+        cpu_max = np.max(resource_samples["cpu"])
+
+        ram_avg = np.mean(resource_samples["ram"])
+        ram_max = np.max(resource_samples["ram"])
+		
+		
+        self.performance_metrics.append({
+    		"round": server_round,
+    		"server_round_time": server_round_time,
+    		"client_evaluation_time": client_eval_time,
+    		"reputation_time": reputation_time,
+    		"audit_creation_time": audit_time,
+    		"ipfs_time": ipfs_time,
+    		"blockchain_send_time": send_time,
+    		"blockchain_confirmation_time": confirmation_time,
+    		"gas_used": gas_used,
+    		"cpu_avg_percent": cpu_avg,
+    		"cpu_max_percent": cpu_max,
+    		"ram_avg_mb": ram_avg,
+    		"ram_max_mb": ram_max
+		})
+
 
         # Alla fine dei round di FL salviamo i risultati
         if server_round == ROUNDS:
             self.save_final_results()
-
-
+            
+        
         return new_parameters, {
             "accuracy": acc,
             "precision": prec,

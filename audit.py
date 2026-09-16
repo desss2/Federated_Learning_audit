@@ -144,7 +144,53 @@ def create_round_transaction(
 
         "cid_transactions": cid_transactions
     }
+    
+    
+def check_audit_exists(
+        server_round,
+        blockchain_rpc_url,
+        contract_address,
+        contract_abi
+):
+    """
+    Verifica se l'audit di uno specifico round
+    è stato registrato sulla blockchain.
+    """
 
+    w3 = Web3(Web3.HTTPProvider(blockchain_rpc_url))
+
+    if not w3.is_connected():
+        return {
+            "checked": False,
+            "exists": False,
+            "error": "Unable to connect to blockchain"
+        }
+
+    contract = w3.eth.contract(
+        address=Web3.to_checksum_address(contract_address),
+        abi=contract_abi
+    )
+
+    try:
+        exists = contract.functions.auditExists(
+            server_round
+        ).call()
+
+        return {
+            "checked": True,
+            "exists": exists,
+            "round": server_round
+        }
+
+    except Exception as e:
+        return {
+            "checked": False,
+            "exists": False,
+            "round": server_round,
+            "error": f"Unable to check audit existence: {e}"
+        }
+        
+        
 
 def verify_audit(
         server_round,
@@ -156,7 +202,6 @@ def verify_audit(
     """
     Verifica indipendentemente l'audit di un round.
     """
-
 
     # connessione al corrispondente nodo della blockchain
     w3 = Web3(Web3.HTTPProvider(blockchain_rpc_url))
@@ -188,9 +233,9 @@ def verify_audit(
     )
 
     # recupero audit relativo allo specifico round dalla blockchain
-
     try:
         audit = contract.functions.getAudit(server_round).call()
+
         blockchain_audit_retrieved = True
     except Exception as e:
         return {
@@ -248,10 +293,12 @@ def verify_audit(
     # recupero json da IPFS
 
     try:
+
         response = requests.post(
             f"{ipfs_api_url}/api/v0/cat",
             params={"arg": cid_transactions}
         )
+
 
         response.raise_for_status()
 

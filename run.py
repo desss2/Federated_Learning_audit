@@ -1,8 +1,9 @@
 import subprocess
 import sys
 import time
+import json
 
-from globals import NUM_CLIENTS, USE_LABEL_NOISE
+from globals import NUM_CLIENTS, USE_LABEL_NOISE, ROUNDS
 
 
 def run_fl():
@@ -29,6 +30,7 @@ def run_fl():
     with open(report_path, "w", encoding="utf-8") as report:
         report.write("=== FEDERATED LEARNING EXECUTION TIME ===\n")
         report.write(f"Number of clients: {NUM_CLIENTS}\n")
+        report.write(f"Number of rounds: {ROUNDS}\n")
         report.write(f"Execution time: {fl_time:.2f} seconds\n")
         report.write(f"Execution time: {fl_time / 60:.2f} minutes\n")
 
@@ -72,41 +74,75 @@ def verify_clients():
 
         if process.returncode != 0:
             failed.append(partition_id)
+            
+    for partition_id, output in outputs:
+
+        header = (
+            f"\n{'=' * 20} "
+            f"CLIENT {partition_id} "
+            f"{'=' * 20}\n"
+        )
+
+        print(header, end="")
+        print(output, end="")
+        
+    if failed:
+        message = f"\n[ERROR] Verification failed for clients: {failed}\n"
+
+        print(message, end="")
+
+        return 1
+            
+    aggregated_results = []
 
     if USE_LABEL_NOISE:
-        report_path = "results/audit_verification_noisy.npy"
+        aggregated_path = "results/audit_verification_noisy.json"
+        suffix = "noisy"
     else:
-        report_path = "results/audit_verification_clean.npy"
+        aggregated_path = "results/audit_verification_clean.json"
+        suffix = "clean"
 
-    with open(report_path, "w", encoding="utf-8") as report:
+    for partition_id in range(NUM_CLIENTS):
 
-        report.write("=== AUDIT VERIFICATION ===\n")
+        client_name = f"client_{partition_id}"
 
-        for partition_id, output in outputs:
-            header = f"\n{'=' * 20} CLIENT {partition_id} {'=' * 20}\n"
+        local_json_path = (
+            f"results/"
+            f"{client_name}_audit_verification_{suffix}.json"
+        )
 
-            # Terminale
-            print(header, end="")
-            print(output, end="")
+        # Legge direttamente il JSON generato dal client.
+        # La cartella results è condivisa tramite volume Docker.
+        try:
+            with open(local_json_path, "r", encoding="utf-8") as f:
+                client_result = json.load(f)
 
-            # File
-            report.write(header)
-            report.write(output)
+            aggregated_results.append(client_result)
+        except Exception as e:
 
-        if failed:
-            message = f"\n[ERROR] Verification failed for clients: {failed}\n"
-
-            print(message, end="")
-            report.write(message)
+            print(
+                f"\n[ERROR] Unable to read verification "
+                f"file for {client_name}: {e}"
+            )
 
             return 1
 
-        message = "\n=== AUDIT VERIFICATION COMPLETED ===\n"
+    aggregated_data = {
+        "number_of_clients": NUM_CLIENTS,
+        "number_of_rounds": ROUNDS,
+        "clients": aggregated_results
+    }
 
-        print(message, end="")
-        report.write(message)
+    with open(aggregated_path, "w", encoding="utf-8") as f:
+        json.dump(aggregated_data, f, indent=4)
+
+    print(
+        f"\n[VERIFY AUDIT] Aggregated results saved to "
+        f"{aggregated_path}"
+    )
 
     print("\n=== AUDIT VERIFICATION COMPLETED ===")
+
     return 0
 
 

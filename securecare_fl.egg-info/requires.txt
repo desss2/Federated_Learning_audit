@@ -1,0 +1,12 @@
+flwr[simulation]==1.30.0
+tensorflow
+numpy
+pandas
+matplotlib
+scikit-learn==1.8.0
+scipy
+joblib
+web3
+requests
+pyyaml
+psutil

@@ -1,0 +1,162 @@
+services:
+  superlink:
+    image: flwr/superlink:${FLWR_VERSION:-1.30.0}
+    command:
+    - --insecure
+    - --isolation
+    - process
+    ports:
+    - 9093:9093
+  superexec-serverapp:
+    build:
+      context: ${PROJECT_DIR:-.}
+      dockerfile_inline: "            FROM flwr/superexec:${FLWR_VERSION:-1.30.0}\n\
+        \            USER root\n            RUN apt-get update \\\n              \
+        \  && apt-get -y --no-install-recommends install \\\n                build-essential\
+        \ \\\n                && rm -rf /var/lib/apt/lists/*\n            USER app\n\
+        \            WORKDIR /app\n            COPY --chown=app:app pyproject.toml\
+        \ .\n            RUN sed -i 's/.*flwr\\[simulation\\].*//' pyproject.toml\
+        \ \\\n                && python -m pip install -U --no-cache-dir .   \n  \
+        \          ENTRYPOINT [\"flower-superexec\"]\n            "
+    command:
+    - --insecure
+    - --plugin-type
+    - serverapp
+    - --appio-api-address
+    - superlink:9091
+    environment:
+      DATA_DIR: /app/data
+    volumes:
+    - ./data/X_test.npy:/app/data/X_test.npy:ro
+    - ./data/y_test.npy:/app/data/y_test.npy:ro
+    - ./data/setup_info.pkl:/app/data/setup_info.pkl:ro
+    - ./identity_mapping.json:/app/identity_mapping.json
+    - ./blockchain/network/nodes/server:/app/blockchain/network/nodes/server:ro
+    - ./blockchain/contract_address.json:/app/blockchain/contract_address.json:ro
+    - ./results:/app/results
+    restart: on-failure:3
+    depends_on:
+    - superlink
+    networks:
+    - default
+    - securecare-ipfs
+    - securecare-blockchain
+  supernode-1:
+    image: flwr/supernode:${FLWR_VERSION:-1.30.0}
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --clientappio-api-address
+    - 0.0.0.0:9094
+    - --isolation
+    - process
+    - --node-config
+    - partition-id=0 num-partitions=2
+    depends_on:
+    - superlink
+  superexec-clientapp-1:
+    build:
+      context: ${PROJECT_DIR:-.}
+      dockerfile_inline: "                FROM flwr/superexec:${FLWR_VERSION:-1.30.0}\n\
+        \                \n                USER root\n                \n         \
+        \       RUN apt-get update \\\n                    && apt-get -y --no-install-recommends\
+        \ install \\\n                    build-essential \\\n                   \
+        \ && rm -rf /var/lib/apt/lists/*\n                \n                USER app\n\
+        \                \n                WORKDIR /app\n                \n      \
+        \          COPY --chown=app:app pyproject.toml .\n                \n     \
+        \           RUN sed -i 's/.*flwr\\[simulation\\].*//' pyproject.toml \\\n\
+        \                    && python -m pip install -U --no-cache-dir .\n      \
+        \          \n                ENTRYPOINT [\"flower-superexec\"]\n         \
+        \       "
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-1:9094
+    environment:
+      DATA_DIR: /app/data
+    volumes:
+    - ./data/setup_info.pkl:/app/data/setup_info.pkl:ro
+    - ./data/client_0_noisy_X.npy:/app/data/client_0_noisy_X.npy:ro
+    - ./data/client_0_noisy_y.npy:/app/data/client_0_noisy_y.npy:ro
+    - ./verify_client.py:/app/verify_client.py:ro
+    - ./globals.py:/app/globals.py:ro
+    - ./audit.py:/app/audit.py:ro
+    - ./blockchain/network/nodes/client_0:/app/blockchain/network/nodes/client_0:ro
+    - ./blockchain/contract_address.json:/app/blockchain/contract_address.json:ro
+    - ./results:/app/results
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+    stop_signal: SIGINT
+    depends_on:
+    - supernode-1
+    networks:
+    - default
+    - securecare-ipfs
+    - securecare-blockchain
+  supernode-2:
+    image: flwr/supernode:${FLWR_VERSION:-1.30.0}
+    command:
+    - --insecure
+    - --superlink
+    - superlink:9092
+    - --clientappio-api-address
+    - 0.0.0.0:9095
+    - --isolation
+    - process
+    - --node-config
+    - partition-id=1 num-partitions=2
+    depends_on:
+    - superlink
+  superexec-clientapp-2:
+    build:
+      context: ${PROJECT_DIR:-.}
+      dockerfile_inline: "                FROM flwr/superexec:${FLWR_VERSION:-1.30.0}\n\
+        \                \n                USER root\n                \n         \
+        \       RUN apt-get update \\\n                    && apt-get -y --no-install-recommends\
+        \ install \\\n                    build-essential \\\n                   \
+        \ && rm -rf /var/lib/apt/lists/*\n                \n                USER app\n\
+        \                \n                WORKDIR /app\n                \n      \
+        \          COPY --chown=app:app pyproject.toml .\n                \n     \
+        \           RUN sed -i 's/.*flwr\\[simulation\\].*//' pyproject.toml \\\n\
+        \                    && python -m pip install -U --no-cache-dir .\n      \
+        \          \n                ENTRYPOINT [\"flower-superexec\"]\n         \
+        \       "
+    command:
+    - --insecure
+    - --plugin-type
+    - clientapp
+    - --appio-api-address
+    - supernode-2:9095
+    environment:
+      DATA_DIR: /app/data
+    volumes:
+    - ./data/setup_info.pkl:/app/data/setup_info.pkl:ro
+    - ./data/client_1_noisy_X.npy:/app/data/client_1_noisy_X.npy:ro
+    - ./data/client_1_noisy_y.npy:/app/data/client_1_noisy_y.npy:ro
+    - ./verify_client.py:/app/verify_client.py:ro
+    - ./globals.py:/app/globals.py:ro
+    - ./audit.py:/app/audit.py:ro
+    - ./blockchain/network/nodes/client_1:/app/blockchain/network/nodes/client_1:ro
+    - ./blockchain/contract_address.json:/app/blockchain/contract_address.json:ro
+    - ./results:/app/results
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+    stop_signal: SIGINT
+    depends_on:
+    - supernode-2
+    networks:
+    - default
+    - securecare-ipfs
+    - securecare-blockchain
+networks:
+  securecare-ipfs:
+    external: true
+  securecare-blockchain:
+    external: true

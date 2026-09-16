@@ -1,15 +1,14 @@
 import sys
 import json
-
+import os
 from globals import (
     ROUNDS,
     get_blockchain_rpc_url,
     get_ipfs_api_url,
-    BLOCKCHAIN_SMART_CONTRACT
+    BLOCKCHAIN_SMART_CONTRACT, USE_LABEL_NOISE
 )
 
-from audit import verify_audit
-
+from audit import verify_audit, check_audit_exists
 
 AUDIT_READ_ABI = [
     {
@@ -60,6 +59,25 @@ AUDIT_READ_ABI = [
         ],
         "stateMutability": "view",
         "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "round",
+                "type": "uint256"
+            }
+        ],
+        "name": "auditExists",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
     }
 ]
 
@@ -72,6 +90,28 @@ def print_verification_result(result):
     print(f"[VERIFY AUDIT] Round {round_num}")
     print()
 
+    # Audit non registrato
+    if result.get("status") == "NOT_RECORDED":
+
+        print("✗ Audit was not recorded on blockchain")
+        print()
+        print("✗ AUDIT VERIFICATION FAILED")
+        print()
+
+        return
+
+    # Errore nel controllo della blockchain
+    if result.get("status") == "CHECK_FAILED":
+
+        print("✗ Unable to check audit existence on blockchain")
+        print(f"  Error: {result['error']}")
+        print()
+        print("✗ AUDIT VERIFICATION FAILED")
+        print()
+
+        return
+
+    # Verifica completa
     checks = result["checks"]
 
     # Blockchain
@@ -109,7 +149,10 @@ def print_verification_result(result):
 
         metrics = ", ".join(client["negative_metrics"])
 
-        print(f"  [client_id={client['client_id']} partition={client['partition_id']}")
+        print(
+            f"  [client_id={client['client_id']} "
+            f"partition={client['partition_id']}]"
+        )
         print(f"   reason={client['reason']}")
         print(f"   negative_metrics=[{metrics}]")
 
@@ -121,8 +164,10 @@ def print_verification_result(result):
     print(f"Client included: {len(included)}")
 
     for client in included:
-
-        print(f"  [client_id={client['client_id']}/partition={client['partition_id']}]")
+        print(
+            f"  [client_id={client['client_id']}"
+            f"/partition={client['partition_id']}]"
+        )
 
     print()
 
@@ -146,6 +191,40 @@ def verify_client_audits(client_name):
     results = []
 
     for round_num in range(1, ROUNDS + 1):
+        existence = check_audit_exists(
+            server_round=round_num,
+            blockchain_rpc_url=blockchain_rpc_url,
+            contract_address=contract_address,
+            contract_abi=AUDIT_READ_ABI
+        )
+        
+        if not existence["checked"]:
+
+            result = {
+                "verified": False,
+                "round": round_num,
+                "status": "CHECK_FAILED",
+                "error": existence["error"]
+            }
+
+            print_verification_result(result)
+            results.append(result)
+            continue
+            
+        if not existence["exists"]:
+
+            result = {
+                "verified": False,
+                "round": round_num,
+                "status": "NOT_RECORDED",
+                "error": "Audit was not recorded on blockchain"
+            }
+
+            print_verification_result(result)
+
+            results.append(result)
+            continue
+
         result = verify_audit(
             server_round=round_num,
             blockchain_rpc_url=blockchain_rpc_url,
@@ -154,7 +233,31 @@ def verify_client_audits(client_name):
             contract_abi=AUDIT_READ_ABI
         )
 
+        result["status"] = "RECORDED"
+
         print_verification_result(result)
+
+        results.append(result)
+        
+    # Salvataggio del risultato finale del singolo client
+    if USE_LABEL_NOISE:
+        output_path = f"results/{client_name}_audit_verification_noisy.json"
+    else:
+        output_path = f"results/{client_name}_audit_verification_clean.json"
+
+    os.makedirs("results", exist_ok=True)
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "client_id": client_name,
+                "rounds": results
+            },
+            f,
+            indent=4
+        )
+    
+    return results
 
 
 if __name__ == "__main__":

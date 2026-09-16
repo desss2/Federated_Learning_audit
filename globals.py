@@ -44,8 +44,12 @@ NOISE_CONFIG = {
     4: 0.7    # 70% noise
 }
 
-# True per noise, False per clean
+# True per label noise, False per clean
 USE_LABEL_NOISE = True
+# Simulazione di alterazioni malevole da parte del server
+SIMULATE_WRONG_MODEL_HASH = True
+SIMULATE_WRONG_AGGREGATION_DECISION = False
+
 
 RPC_BASE_PORT = 8545
 IPFS_API_BASE_PORT = 5001

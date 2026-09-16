@@ -358,6 +358,8 @@ def create_stratified_partitions(X_train, y_train,num_clients,noise_config=None)
         # partizione con label noise
         noise_rate = noise_config.get(client_id, 0.0)
 
+
+
         y_noisy = inject_label_noise(
             y_clean,
             noise_rate=noise_rate,

@@ -159,6 +159,7 @@ def create_docker_compose(num_clients):
                 "./audit.py:/app/audit.py:ro",
                 f"./blockchain/network/nodes/client_{client_id}:/app/blockchain/network/nodes/client_{client_id}:ro",
                 "./blockchain/contract_address.json:/app/blockchain/contract_address.json:ro",
+                "./results:/app/results",
             ],
             "deploy": {
                 "resources": {

@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: securecare-fl
+Version: 1.0.0
+Summary: SecureCare-FL
+Requires-Python: >=3.11
+Requires-Dist: flwr[simulation]==1.30.0
+Requires-Dist: tensorflow
+Requires-Dist: numpy
+Requires-Dist: pandas
+Requires-Dist: matplotlib
+Requires-Dist: scikit-learn==1.8.0
+Requires-Dist: scipy
+Requires-Dist: joblib
+Requires-Dist: web3
+Requires-Dist: requests
+Requires-Dist: pyyaml
+Requires-Dist: psutil

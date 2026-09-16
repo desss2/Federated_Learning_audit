@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import time
 
 from web3 import Web3
 
@@ -196,16 +197,26 @@ def record_audit_on_blockchain(round_transaction, client_audits, blockchain_rpc_
         tx,
         private_key
     )
+    
+    
+    tx_start = time.perf_counter()
 
     tx_hash = w3.eth.send_raw_transaction(
         signed_tx.raw_transaction
     )
+    
+    send_time = time.perf_counter() - tx_start
+    
+    confirmation_start = time.perf_counter()
 
     receipt = w3.eth.wait_for_transaction_receipt(
         tx_hash
     )
+    
+    confirmation_time = time.perf_counter() - confirmation_start
+    gas_used = receipt.gasUsed
 
-    return tx_hash.hex(), receipt.blockNumber, receipt.status
+    return tx_hash.hex(), receipt.blockNumber, receipt.status, gas_used, send_time, confirmation_time
 
 
 def register_client_update_on_blockchain(
@@ -266,20 +277,24 @@ def register_client_update_on_blockchain(
         private_key
     )
 
+    tx_start = time.perf_counter()
+	
     tx_hash = w3.eth.send_raw_transaction(
         signed_tx.raw_transaction
     )
+    
+    send_time = time.perf_counter() - tx_start
+    
+    confirmation_start = time.perf_counter()
 
     receipt = w3.eth.wait_for_transaction_receipt(
         tx_hash
     )
-
-    return (
-        tx_hash.hex(),
-        receipt.blockNumber,
-        receipt.status
-    )
-
+    
+    confirmation_time = time.perf_counter() - confirmation_start
+    gas_used = receipt.gasUsed
+    
+    return tx_hash.hex(), receipt.blockNumber, receipt.status, gas_used, send_time, confirmation_time
 
 def get_client_update_from_blockchain(
     client_id,
