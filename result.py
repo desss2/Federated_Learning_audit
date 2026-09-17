@@ -18,7 +18,14 @@ def main():
     print("LOADING FEDERATED LEARNING RESULTS")
     print("=" * 70)
 
-    results = load_results(RESULTS_PATH)
+
+    if USE_LABEL_NOISE:
+        result_path = "results/results_noisy.npy"
+    else:
+        result_path = "results/results_clean.npy"
+
+    results = load_results(result_path)
+
 
     global_metrics = results["global_metrics"]
     all_round_reputations = results["all_round_reputations"]
@@ -127,6 +134,7 @@ def main():
     print("GENERATING VISUALIZATIONS")
     print("=" * 70)
 
+    """
     # 1. Global metrics
     plot_global_metrics(
         global_metrics
@@ -152,6 +160,32 @@ def main():
         n_classes,
         label_classes
     )
+    """
+
+    if USE_LABEL_NOISE:
+        performance_label = "noisy"
+    else:
+        performance_label = "clean"
+
+    client_filenames = [
+        f"results/client_{client_id}_performance_metrics_{performance_label}.json"
+        for client_id in range(NUM_CLIENTS)
+    ]
+
+    server_filename = f"results/performance_metrics_{performance_label}.json"
+
+    #plot_client_performance(client_filenames)
+    #plot_gas_usage(client_filenames, server_filename)
+    #plot_server_performance(server_filename)
+
+    audit_filename=f"results/audit_verification_{performance_label}.json"
+
+    #plot_audit_verification_status(audit_filename)
+    #plot_audit_verification_checks(audit_filename)
+
+    plot_audit_client_selection(audit_filename)
+
+
 
     # ===========================================================
     # CLASSIFICATION REPORT
