@@ -134,7 +134,6 @@ def main():
     print("GENERATING VISUALIZATIONS")
     print("=" * 70)
 
-    """
     # 1. Global metrics
     plot_global_metrics(
         global_metrics
@@ -160,7 +159,6 @@ def main():
         n_classes,
         label_classes
     )
-    """
 
     if USE_LABEL_NOISE:
         performance_label = "noisy"
@@ -174,14 +172,14 @@ def main():
 
     server_filename = f"results/performance_metrics_{performance_label}.json"
 
-    #plot_client_performance(client_filenames)
-    #plot_gas_usage(client_filenames, server_filename)
-    #plot_server_performance(server_filename)
+    plot_client_performance(client_filenames)
+    plot_gas_usage(client_filenames, server_filename)
+    plot_server_performance(server_filename)
 
     audit_filename=f"results/audit_verification_{performance_label}.json"
 
-    #plot_audit_verification_status(audit_filename)
-    #plot_audit_verification_checks(audit_filename)
+    plot_audit_verification_status(audit_filename)
+    plot_audit_verification_checks(audit_filename)
 
     plot_audit_client_selection(audit_filename)
 
