@@ -11,7 +11,7 @@ import itertools
 
 # 1. Global metrics over rounds
 
-def plot_global_metrics(global_metrics):
+def plot_global_metrics(global_metrics, label):
 
     gm = np.array(global_metrics)
     #rounds = np.arange(1, ROUNDS+1)
@@ -45,12 +45,18 @@ def plot_global_metrics(global_metrics):
     axes[1, 1].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig(
+        f"performance_{label}.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
 
 # 2. Reputation evolution over rounds
 def plot_reputation_evolution(all_round_reputations,
     num_clients,
-    reputation_threshold):
+    reputation_threshold,
+    label):
 
     rounds = np.arange(1,len(all_round_reputations) + 1)
 
@@ -67,10 +73,14 @@ def plot_reputation_evolution(all_round_reputations,
     plt.legend(loc='best')
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.show()
+    plt.savefig(
+        f"reputation_{label}.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
 
 def plot_reputation_methods(all_round_reputations,
-    num_clients):
+    num_clients, label):
 
     # 3. Reputation method comparison (final round)
     methods = ['weighted_avg', 'beta_reputation', 'fuzzy_trust', 'tanh_utility',
@@ -96,14 +106,18 @@ def plot_reputation_methods(all_round_reputations,
     ax.legend()
     ax.grid(True, alpha=0.3, axis='y')
     plt.tight_layout()
-    plt.show()
+    plt.savefig(
+        f"score_reputation_{label}.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
 
 
-def plot_confusion_matrix(y_test, y_pred_global, n_classes, labels):
+def plot_confusion_matrix(y_test, y_pred_global, n_classes, labels, label):
     cm = confusion_matrix(
         y_test,
         y_pred_global,
-        labels=np.arange(n_classes)
+        labels=np.arange(n_classes),
     )
 
     print("\n=== CONFUSION MATRIX ===")
@@ -151,10 +165,13 @@ def plot_confusion_matrix(y_test, y_pred_global, n_classes, labels):
         )
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig(
+        f"confusion_matrix_{label}.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
 
-
-def plot_client_performance(client_filenames):
+def plot_client_performance(client_filenames, label):
 
     for client_id, filename in enumerate(client_filenames):
 
@@ -222,10 +239,15 @@ def plot_client_performance(client_filenames):
         axes[1, 1].legend()
 
         plt.tight_layout()
-        plt.show()
+
+        plt.savefig(
+            f"client_{client_id}_performance_{label}.png",
+            dpi=300,
+            bbox_inches="tight"
+        )
 
 
-def plot_gas_usage(client_filenames, server_filename):
+def plot_gas_usage(client_filenames, server_filename, label):
 
     client_data = []
 
@@ -238,25 +260,33 @@ def plot_gas_usage(client_filenames, server_filename):
 
     rounds = [r["round"] for r in server_data]
 
+    n_clients = len(client_data)
+    n_bars = n_clients + 1  # client + server
+
     x = np.arange(len(rounds))
-    width = 0.2
+
+    # Riduce automaticamente la larghezza all'aumentare dei partecipanti
+    width = min(0.18, 0.8 / n_bars)
 
     fig, ax = plt.subplots(figsize=(12, 6))
+
+    # Posizioni centrate rispetto al round
+    positions = np.arange(n_bars) - (n_bars - 1) / 2
 
     for i, data in enumerate(client_data):
         gas = [r["gas_used"] for r in data]
 
         ax.bar(
-            x + (i - 1) * width,
+            x + positions[i] * width,
             gas,
             width,
-            label=f"Client {i}"
+            label=f"Client {i + 1}"
         )
 
     server_gas = [r["gas_used"] for r in server_data]
 
     ax.bar(
-        x + (len(client_data) - 1) * width,
+        x + positions[-1] * width,
         server_gas,
         width,
         label="Server"
@@ -265,16 +295,28 @@ def plot_gas_usage(client_filenames, server_filename):
     ax.set_title("Gas Usage per Round")
     ax.set_xlabel("Round")
     ax.set_ylabel("Gas Used")
+
     ax.set_xticks(x)
     ax.set_xticklabels(rounds)
+
     ax.grid(axis="y", alpha=0.3)
-    ax.legend()
+    ax.legend(
+        ncol=2 if n_clients <= 5 else 3,
+        fontsize=9
+    )
 
     plt.tight_layout()
-    plt.show()
+
+    plt.savefig(
+        f"gas_usage_{label}.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.close()
 
 
-def plot_server_performance(server_filename):
+def plot_server_performance(server_filename, flag_malevolous):
 
     with open(server_filename, "r") as f:
         data = json.load(f)
@@ -435,11 +477,15 @@ def plot_server_performance(server_filename):
     axes[1, 2].legend()
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig(
+        f"server_performance_{flag_malevolous}.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
 
 
 # dimostra la non registrazione delle transazioni qualora server alterasse il record
-def plot_audit_verification_status(filename):
+def plot_audit_verification_status(filename, flag_malevolous):
 
     with open(filename, "r") as f:
         data = json.load(f)
@@ -537,9 +583,13 @@ def plot_audit_verification_status(filename):
     )
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig(
+        f"blockchain_validation_{flag_malevolous}.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
 
-def plot_audit_verification_checks(filename):
+def plot_audit_verification_checks(filename, flag_malevolous, label):
 
     with open(filename, "r") as f:
         data = json.load(f)
@@ -660,10 +710,14 @@ def plot_audit_verification_checks(filename):
         )
 
         plt.tight_layout()
-        plt.show()
+        plt.savefig(
+            f"check_client_{client['client_id']}_{flag_malevolous}_{label}.png",
+            dpi=300,
+            bbox_inches="tight"
+        )
 
 
-def plot_audit_client_selection(filename):
+def plot_audit_client_selection(filename, flag_malevolous, label):
 
     with open(filename, "r") as f:
         data = json.load(f)
@@ -761,7 +815,12 @@ def plot_audit_client_selection(filename):
             ax.legend()
 
             plt.tight_layout()
-            plt.show()
+            plt.savefig(
+                f"decision_client_{client['client_id']}_{flag_malevolous}_{label}.png",
+                dpi=300,
+                bbox_inches="tight"
+            )
+            plt.close(fig)
 
             continue
 
@@ -773,8 +832,8 @@ def plot_audit_client_selection(filename):
         fig, (ax, ax_table) = plt.subplots(
             2,
             1,
-            figsize=(13, 7),
-            gridspec_kw={"height_ratios": [2, 1.3]}
+            figsize=(13, 8),
+            gridspec_kw={"height_ratios": [2.2, 1.8]}
         )
 
         x = np.arange(len(rounds))
@@ -797,7 +856,8 @@ def plot_audit_client_selection(filename):
         ax.set_title(
             f"Audit Client Selection - {client['client_id']}",
             fontsize=15,
-            fontweight="bold"
+            fontweight="bold",
+            pad=12
         )
 
         ax.set_xlabel("Round")
@@ -829,6 +889,18 @@ def plot_audit_client_selection(filename):
 
         ax_table.axis("off")
 
+        # Titolo separato dalla tabella
+        ax_table.text(
+            0.5,
+            0.96,
+            "Excluded Clients Details",
+            ha="center",
+            va="top",
+            fontsize=13,
+            fontweight="bold",
+            transform=ax_table.transAxes
+        )
+
         table_data = [
             [
                 item["round"],
@@ -852,39 +924,73 @@ def plot_audit_client_selection(filename):
             cellText=table_data,
             colLabels=columns,
             cellLoc="center",
-            loc="center"
+            colLoc="center",
+            loc="center",
+            bbox=[0.02, 0.02, 0.96, 0.78]
         )
 
         table_plot.auto_set_font_size(False)
         table_plot.set_fontsize(9)
-        table_plot.scale(1, 1.7)
 
+        # Larghezze relative delle colonne
+        column_widths = [
+            0.08,  # Round
+            0.14,  # Client ID
+            0.14,  # Partition
+            0.27,  # Reason
+            0.37  # Negative metrics
+        ]
+
+        for col, width_col in enumerate(column_widths):
+
+            for row in range(len(table_data) + 1):
+                table_plot[(row, col)].set_width(width_col)
+
+        # Stile celle
         for (row, col), cell in table_plot.get_celld().items():
 
-            cell.set_linewidth(0.8)
-            cell.set_edgecolor("#b0b0b0")
+            cell.set_linewidth(0.6)
+            cell.set_edgecolor("#b8b8b8")
 
+            # Header
             if row == 0:
 
-                cell.set_facecolor("white")
+                cell.set_facecolor("#404040")
 
                 cell.set_text_props(
+                    color="white",
                     fontweight="bold",
-                    fontsize=10
-                )
-
-            else:
-
-                cell.set_text_props(
                     fontsize=9
                 )
 
-        ax_table.set_title(
-            "Excluded Clients Details",
-            fontsize=13,
-            fontweight="bold",
-            pad=10
-        )
+            # Righe alternate
+            else:
+
+                if row % 2 == 0:
+                    cell.set_facecolor("#f2f2f2")
+                else:
+                    cell.set_facecolor("#ffffff")
+
+                # Testo descrittivo allineato a sinistra
+                if col in [3, 4]:
+                    cell.set_text_props(
+                        fontsize=9,
+                        ha="left"
+                    )
+                else:
+                    cell.set_text_props(
+                        fontsize=9,
+                        ha="center"
+                    )
+
+        table_plot.scale(1, 1.8)
 
         plt.tight_layout()
-        plt.show()
+        plt.savefig(
+            f"decision_client_{client['client_id']}_{flag_malevolous}_{label}.png",
+            dpi=300,
+            bbox_inches="tight"
+        )
+        plt.close(fig)
+
+

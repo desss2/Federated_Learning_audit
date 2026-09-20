@@ -4,6 +4,55 @@ from visualization import *
 from globals import *
 
 
+import os
+
+BASE_DIR = os.getcwd()
+
+RESULTS_DIR = os.path.join(
+    BASE_DIR,
+    "results"
+)
+
+
+LATENCY_DIR = os.path.join(
+    RESULTS_DIR,
+    "latenza_overhead"
+)
+
+MODEL_DIR = os.path.join(
+    RESULTS_DIR,
+    "performance_modello"
+)
+
+BLOCKCHAIN_DIR = os.path.join(
+    RESULTS_DIR,
+    "validazione_blockchain"
+)
+
+AUDIT_DIR = os.path.join(
+    BLOCKCHAIN_DIR,
+    "auditability_explainability_client"
+)
+
+JUSTIFICATION_DIR = os.path.join(
+    BLOCKCHAIN_DIR,
+    "giustificazione_utilizzo"
+)
+
+
+def create_results_directories():
+
+    directories = [
+        LATENCY_DIR,
+        MODEL_DIR,
+        AUDIT_DIR,
+        JUSTIFICATION_DIR
+    ]
+
+    for directory in directories:
+        os.makedirs(directory, exist_ok=True)
+
+
 def save_results(filename, results):
     np.save(filename, results, allow_pickle=True)
 
@@ -18,6 +67,7 @@ def main():
     print("LOADING FEDERATED LEARNING RESULTS")
     print("=" * 70)
 
+    create_results_directories()
 
     if USE_LABEL_NOISE:
         result_path = "results/results_noisy.npy"
@@ -25,7 +75,6 @@ def main():
         result_path = "results/results_clean.npy"
 
     results = load_results(result_path)
-
 
     global_metrics = results["global_metrics"]
     all_round_reputations = results["all_round_reputations"]
@@ -134,56 +183,44 @@ def main():
     print("GENERATING VISUALIZATIONS")
     print("=" * 70)
 
-    # 1. Global metrics
-    plot_global_metrics(
-        global_metrics
-    )
-
-    # 2. Reputation evolution
-    plot_reputation_evolution(
-        all_round_reputations,
-        NUM_CLIENTS,
-        REPUTATION_THRESHOLD
-    )
-
-    # 3. Reputation methods
-    plot_reputation_methods(
-        all_round_reputations,
-        NUM_CLIENTS
-    )
-
-    # 4. Confusion matrix
-    plot_confusion_matrix(
-        y_test,
-        y_pred_global,
-        n_classes,
-        label_classes
-    )
-
     if USE_LABEL_NOISE:
         performance_label = "noisy"
     else:
         performance_label = "clean"
 
+    if SIMULATE_WRONG_MODEL_HASH or SIMULATE_WRONG_AGGREGATION_DECISION:
+         flag_malevolous="malevolous"
+    else:
+        flag_malevolous="good"
+
+    initial_dir = os.getcwd()
+
     client_filenames = [
-        f"results/client_{client_id}_performance_metrics_{performance_label}.json"
+        os.path.join(RESULTS_DIR, f"client_{client_id}_performance_metrics_{performance_label}.json")
         for client_id in range(NUM_CLIENTS)
     ]
+    server_filename = os.path.join(RESULTS_DIR, f"performance_metrics_{performance_label}.json")
+    audit_filename = os.path.join(RESULTS_DIR, f"audit_verification_{performance_label}.json")
 
-    server_filename = f"results/performance_metrics_{performance_label}.json"
+    os.chdir(MODEL_DIR)
+    plot_global_metrics(global_metrics, performance_label)
+    plot_reputation_evolution(all_round_reputations, NUM_CLIENTS, REPUTATION_THRESHOLD, performance_label)
+    plot_reputation_methods(all_round_reputations, NUM_CLIENTS, performance_label)
+    plot_confusion_matrix(y_test, y_pred_global, n_classes, label_classes, performance_label)
 
-    plot_client_performance(client_filenames)
-    plot_gas_usage(client_filenames, server_filename)
-    plot_server_performance(server_filename)
+    os.chdir(LATENCY_DIR)
+    plot_client_performance(client_filenames, performance_label)
+    plot_server_performance(server_filename, flag_malevolous)
+    plot_gas_usage(client_filenames, server_filename, performance_label)
 
-    audit_filename=f"results/audit_verification_{performance_label}.json"
+    os.chdir(AUDIT_DIR)
+    plot_audit_verification_checks(audit_filename, flag_malevolous, performance_label)
+    plot_audit_client_selection(audit_filename, flag_malevolous, performance_label)
 
-    plot_audit_verification_status(audit_filename)
-    plot_audit_verification_checks(audit_filename)
+    os.chdir(JUSTIFICATION_DIR)
+    plot_audit_verification_status(audit_filename, flag_malevolous)
 
-    plot_audit_client_selection(audit_filename)
-
-
+    os.chdir(initial_dir)
 
     # ===========================================================
     # CLASSIFICATION REPORT
