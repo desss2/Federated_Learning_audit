@@ -189,9 +189,14 @@ def main():
         performance_label = "clean"
 
     if SIMULATE_WRONG_MODEL_HASH or SIMULATE_WRONG_AGGREGATION_DECISION:
-         flag_malevolous="malevolous"
+         flag_malevolous="blockchain_malevolous"
     else:
-        flag_malevolous="good"
+        flag_malevolous="blockchain_good"
+
+    if SIMULATE_WRONG_IPFS_RECORD:
+        flag_malevolous_ipfs = "ipfs_malevolous"
+    else:
+        flag_malevolous_ipfs = "ipfs_good"
 
     initial_dir = os.getcwd()
 
@@ -210,15 +215,15 @@ def main():
 
     os.chdir(LATENCY_DIR)
     plot_client_performance(client_filenames, performance_label)
-    plot_server_performance(server_filename, flag_malevolous)
+    plot_server_performance(server_filename, flag_malevolous, flag_malevolous_ipfs)
     plot_gas_usage(client_filenames, server_filename, performance_label)
 
     os.chdir(AUDIT_DIR)
-    plot_audit_verification_checks(audit_filename, flag_malevolous, performance_label)
+    plot_audit_verification_checks(audit_filename, flag_malevolous, performance_label, flag_malevolous_ipfs)
     plot_audit_client_selection(audit_filename, flag_malevolous, performance_label)
 
     os.chdir(JUSTIFICATION_DIR)
-    plot_audit_verification_status(audit_filename, flag_malevolous)
+    plot_audit_verification_status(audit_filename, flag_malevolous, flag_malevolous_ipfs)
 
     os.chdir(initial_dir)
 

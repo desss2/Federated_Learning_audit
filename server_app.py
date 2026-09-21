@@ -17,6 +17,7 @@ import json
 import time
 import threading
 import psutil
+import copy
 
 DATA_DIR = os.getenv("DATA_DIR", "./data")
 
@@ -436,8 +437,26 @@ class OutputFedAvg(FedAvg):
         ipfs_start = time.perf_counter()
 
         ipfs_api_url = get_ipfs_api_url("server")
-        cid_transactions = upload_audit_records_to_ipfs(round_audit, ipfs_api_url)
-        
+
+        # Copia dei record corretti da salvare su IPFS
+        ipfs_audit = copy.deepcopy(round_audit)
+
+        # Simulazione di record IPFS alterato
+        if SIMULATE_WRONG_IPFS_RECORD and server_round == 2:
+
+            print("[SIMULATION] Altering IPFS audit record for client 0")
+
+            # Hash di un modello locale alterato
+            ipfs_audit[0]["local_model_hash"] = "00" * 32
+
+            # Decisione di aggregazione alterata
+            if ipfs_audit[0]["decision"] == "ACCEPTED":
+                ipfs_audit[0]["decision"] = "REJECTED"
+            else:
+                ipfs_audit[0]["decision"] = "ACCEPTED"
+
+        cid_transactions = upload_audit_records_to_ipfs(ipfs_audit,ipfs_api_url)
+
         ipfs_time = time.perf_counter() - ipfs_start
           
 

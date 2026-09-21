@@ -316,7 +316,7 @@ def plot_gas_usage(client_filenames, server_filename, label):
     plt.close()
 
 
-def plot_server_performance(server_filename, flag_malevolous):
+def plot_server_performance(server_filename, flag_malevolous, flag_malevolous_ipfs):
 
     with open(server_filename, "r") as f:
         data = json.load(f)
@@ -478,14 +478,14 @@ def plot_server_performance(server_filename, flag_malevolous):
 
     plt.tight_layout()
     plt.savefig(
-        f"server_performance_{flag_malevolous}.png",
+        f"server_performance_{flag_malevolous}_{flag_malevolous_ipfs}.png",
         dpi=300,
         bbox_inches="tight"
     )
 
 
 # dimostra la non registrazione delle transazioni qualora server alterasse il record
-def plot_audit_verification_status(filename, flag_malevolous):
+def plot_audit_verification_status(filename, flag_malevolous, flag_malevolous_ipfs):
 
     with open(filename, "r") as f:
         data = json.load(f)
@@ -584,12 +584,12 @@ def plot_audit_verification_status(filename, flag_malevolous):
 
     plt.tight_layout()
     plt.savefig(
-        f"blockchain_validation_{flag_malevolous}.png",
+        f"blockchain_validation_{flag_malevolous}_{flag_malevolous_ipfs}.png",
         dpi=300,
         bbox_inches="tight"
     )
 
-def plot_audit_verification_checks(filename, flag_malevolous, label):
+def plot_audit_verification_checks(filename, flag_malevolous, label, flag_malevolous_ipfs):
 
     with open(filename, "r") as f:
         data = json.load(f)
@@ -711,7 +711,7 @@ def plot_audit_verification_checks(filename, flag_malevolous, label):
 
         plt.tight_layout()
         plt.savefig(
-            f"check_client_{client['client_id']}_{flag_malevolous}_{label}.png",
+            f"check_client_{client['client_id']}_{flag_malevolous}_{label}_{flag_malevolous_ipfs}.png",
             dpi=300,
             bbox_inches="tight"
         )
