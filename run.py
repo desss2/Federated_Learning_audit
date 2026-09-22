@@ -8,6 +8,15 @@ from globals import NUM_CLIENTS, USE_LABEL_NOISE, ROUNDS
 
 def run_fl():
     print("\n=== FEDERATED LEARNING ===")
+    
+    # Svuota i file delle performance dei client
+    suffix = "noisy" if USE_LABEL_NOISE else "clean"
+
+    for client_id in range(NUM_CLIENTS):
+    	performance_path = (f"results/client_{client_id}_performance_metrics_{suffix}.json")
+
+    	with open(performance_path, "w", encoding="utf-8") as f:
+            json.dump({"rounds": []}, f, indent=4)
 
     start_time = time.perf_counter()
 

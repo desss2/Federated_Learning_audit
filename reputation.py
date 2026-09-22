@@ -294,7 +294,6 @@ class ReputationManager:
             'exponential_decay': self.calculate_exponential_decay(client_index, accuracy),
             'entropy_based': entropy,
             'cosine_similarity': self.cosine_similarity_reputation(client_index, client_updates),
-            'validation_improvement': max(0, validation_improvement),  # Normalized to [0, inf)
             'consistency': consistency,
             'plausibility': plausibility
         }
@@ -304,11 +303,10 @@ class ReputationManager:
             'weighted_avg': 0.15,
             'beta_reputation': 0.15,
             'fuzzy_trust': 0.15,
-            'tanh_utility': 0.10,
+            'tanh_utility': 0.15,
             'exponential_decay': 0.10,
             'entropy_based': 0.10,
             'cosine_similarity': 0.15,
-            'validation_improvement': 0.05,
             'consistency': 0.025,
             'plausibility': 0.025
         }
