@@ -45,12 +45,12 @@ NOISE_CONFIG = {
 }
 
 # True per label noise, False per clean
-USE_LABEL_NOISE = True
+USE_LABEL_NOISE = False
 # Simulazione di alterazioni malevole da parte del server
-SIMULATE_WRONG_MODEL_HASH = True
+SIMULATE_WRONG_MODEL_HASH = False
 SIMULATE_WRONG_AGGREGATION_DECISION = False
 
-SIMULATE_WRONG_IPFS_RECORD = True
+SIMULATE_WRONG_IPFS_RECORD = False
 
 
 RPC_BASE_PORT = 8545
